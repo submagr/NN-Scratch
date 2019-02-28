@@ -7,11 +7,11 @@ import pickle
 import numpy as np
 
 n = 784
-m = 20
+m = 30 
 l = 10
-LRate = 1 
-# trainSize = 000
-# testSize = 100
+LRate = 0.1
+trainSize = 500
+testSize = 200
 
 HWeight = np.random.rand(n, m)
 HBias = np.random.rand(m)
@@ -31,10 +31,10 @@ rawValidationY = data[1][1]
 testX = data[2][0]
 rawTestY = data[2][1]
 
-# trainX = trainX[0:trainSize]
-# rawTrainY = rawTrainY[0:trainSize]
-# testX = testX[0:testSize]
-# rawTestY = rawTestY[0:testSize]
+trainX = trainX[0:trainSize]
+rawTrainY = rawTrainY[0:trainSize]
+testX = testX[0:testSize]
+rawTestY = rawTestY[0:testSize]
 
 def oneHotRep(inArray):
     outArray = np.zeros((len(inArray), 10))
@@ -47,46 +47,65 @@ validationY = oneHotRep(rawValidationY)
 testY = oneHotRep(rawTestY)
 
 def sigmoid(x):
-    return 1.0/(1+np.exp(-x))
+    return 1.0/(1.0+np.exp(-x))
 
 def feedForward(x):
     for j in range(m):
-        zH = HBias[j]
+        zH = 0
         for i in range(n):
             zH += HWeight[i, j] * x[i]
+        zH = zH + HBias[j]
+        print j, zH
         HActivation[j] = sigmoid(zH)
     
     for k in range(l):
-        zO = OBias[k]
+        zO = 0
         for j in range(m):
             zO += OWeight[j, k] * HActivation[j]
+        zO = zO + OBias[k]
         OActivation[k] = sigmoid(zO)
+    print 'HActivation: ', HActivation
+    print 'OActivation: ', OActivation
 
 def backProp(x, y):
+    print "Before backprop update"
+    print "OWeight", OWeight
+    print "OBias", OBias
+    print "HWeight", HWeight
+    print "HBias", HBias
+
+    # Hidden Weights and Biases
+    for j in range(m):
+        temp = 0
+        for k in range(l):
+            temp += LRate*(y[k] - OActivation[k])*(OActivation[k])*(1 - OActivation[k])*(OWeight[j, k])
+        temp *= HActivation[j]*(1 - HActivation[j])
+        HBias[j] += temp
+
+        for i in range (n):
+            HWeight[i, j] += temp*x[i]
+
     # Output Weights and Biases
     for k in range(l):
         OBias[k] += LRate*(y[k] - OActivation[k])*(OActivation[k])*(1 - OActivation[k])
         for j in range(m):
             OWeight[j, k] += LRate*(y[k] - OActivation[k])*(OActivation[k])*(1 - OActivation[k])*HActivation[j]
 
-    # Hidden Weights and Biases
-    for j in range(m):
-        temp = 0
-        for k in range(l):
-            temp += (-1)*(y[k] - OActivation[k])*(OActivation[k])*(1 - OActivation[k])*(OWeight[j, k])
-        HBias[j] = temp*HActivation[j]*(1 - HActivation[j])
-
-        for i in range (n):
-            HWeight[i, j] = temp*HActivation[j]*(1 - HActivation[j])*x[i]
+    print "After backprop update ====>"
+    print "OWeight", OWeight
+    print "OBias", OBias
+    print "HWeight", HWeight
+    print "HBias", HBias
 
 c = 1 
 for x, y in zip(trainX, trainY):
+    print "============== ", c, " ==============="
     print "feedForward ", c
     feedForward(x)
     print "backProp ", c
     backProp(x, y)
     c+=1
-    print ""
+    print "============== ", c, " END ===============\n"
 
 
 # Check test accuracy
@@ -95,13 +114,17 @@ def getPrediction(x):
     return OActivation.argmax()
 
 # Test accuracy
-correct = 0
-for x, y in zip(testX, rawTestY):
-    pred = getPrediction(x)
-    if  pred == y:
-        correct+=1
-        print "Correct"
-    else:
-        print "Incorrect Output ", pred, " != ", y
+def calcAccuracy(X, rawY):
+    correct = 0
+    predCounts = np.zeros(10)
+    for x, y in zip(X, rawY):
+        pred = getPrediction(x)
+        if  pred == y:
+            correct+=1
+        predCounts[int(pred)] += 1
+    return (correct*1.0)/len(rawTestY), predCounts
 
-print (correct*1.0)/len(rawTestY)
+trainAcc, trainPredCounts = calcAccuracy(trainX[1:testSize], rawTrainY[1:testSize])
+testAcc, testPredCounts = calcAccuracy(testX, rawTestY)
+print "Train Accuracy (first testSize elements)========> ", trainAcc, trainPredCounts
+print "Test Accuracy ========> ", testAcc, testPredCounts

@@ -13,7 +13,7 @@ n = 2
 m = 3 
 l = 2
 LRate = 0.85
-np.random.seed(9999)
+np.random.seed(123)
 
 
 def plotData(x, y):
@@ -30,7 +30,7 @@ def showDataStatistics(trainY, testY):
 
 
 expData = {}
-for trainSize in [100, 200, 500, 700, 1000, 2000, 5000, 10000]:
+for trainSize in [100, 200, 500, 700, 1000, 2000, 5000, 10000, 20000]:
     trainAccuracies = []
     trainPredictionRatios = []
     testAccuracies = []
@@ -55,8 +55,8 @@ for trainSize in [100, 200, 500, 700, 1000, 2000, 5000, 10000]:
             data = []
             for i in range(size):
                 x = uniform(-1, 1)
-                # y = 2*x + 3
-                y = (x+4)*(x-2)
+                y = 2*x + 3
+                # y = (x+4)*(x-2)
                 delta = uniform(-1, 1)
                 data.append([x, y + delta, 1 if delta >= 0 else 0])
             shuffle(data)
@@ -150,18 +150,85 @@ for trainSize in [100, 200, 500, 700, 1000, 2000, 5000, 10000]:
             # print "\t OBias"
             # print OBias
 
-        c = 1
-        for x, y in zip(trainX, trainY):
-            # print "============== Sample #", c, "==============="
-            # print ">>>>>>>>>> Init State"
-            showState()
-            feedForward(x)
-            backProp(x, y)
-            # print ">>>>>>>>>> Final State"
-            showState()
-            # print "============== Sample #", c, " ENDS ===============\n"
-            c+=1
+        # c = 1
+        # for x, y in zip(trainX, trainY):
+        #     # print "============== Sample #", c, "==============="
+        #     # print ">>>>>>>>>> Init State"
+        #     showState()
+        #     feedForward(x)
+        #     backProp(x, y)
+        #     # print ">>>>>>>>>> Final State"
+        #     showState()
+        #     # print "============== Sample #", c, " ENDS ===============\n"
+        #     c+=1
 
+        batch_size = 20
+        current_batch = 1
+        for x, y in zip(trainX, trainY):
+            batch_HActivations = []
+            batch_OActivations = []
+            batch_OWeights = []
+            batch_x = []
+            batch_y = []
+
+            feedForward(x)
+            batch_HActivations.append(HActivation)
+            batch_OActivations.append(OActivation)
+            batch_OWeights.append(OWeight)
+            batch_x.append(x)
+            batch_y.append(y)
+
+            if current_batch % batch_size == 0:
+                # update weights now
+
+                current_batch_size = len(batch_HActivations)
+
+                # Hidden Weights and Biases
+                for i in range(n):
+                    for j in range(m):
+                        dWeight_i_j = 0
+                        for iNum in range(current_batch_size):
+                            temp = 0;
+                            for k in range(l):
+                                temp += (batch_y[iNum][k] - batch_OActivations[iNum][k]) * batch_OActivations[iNum][
+                                    k] * (1 - batch_OActivations[iNum][k]) * batch_OWeights[iNum][j, k]
+                            temp *= batch_HActivations[iNum][j] * (1 - batch_HActivations[iNum][j]) * batch_x[iNum][i]
+                            dWeight_i_j += temp
+                        HWeight[i, j] += (LRate/current_batch_size) * dWeight_i_j
+
+                for j in range(m):
+                    dbias_j = 0
+                    for iNum in range(current_batch_size):
+                        temp = 0;
+                        for k in range(l):
+                            temp += (batch_y[iNum][k] - batch_OActivations[iNum][k]) * batch_OActivations[iNum][k] * (
+                                        1 - batch_OActivations[iNum][k]) * batch_OWeights[iNum][j, k]
+                        temp *= batch_HActivations[iNum][j] * (1 - batch_HActivations[iNum][j])
+                        dbias_j += temp
+                    HBias[j] += (LRate / current_batch_size)*dbias_j
+
+                # Output Weights and Biases
+                for k in range(l):
+                    temp = 0
+                    for iNum in range(current_batch_size):
+                        temp += (batch_y[iNum][k] - batch_OActivations[iNum][k]) * (batch_OActivations[iNum][k]) * (1 -
+                            batch_OActivations[iNum][k])
+                    OBias[k] += (LRate / current_batch_size) * temp
+
+                    for j in range(m):
+                        temp = 0
+                        for iNum in range(current_batch_size):
+                            temp += (batch_y[iNum][k] - batch_OActivations[iNum][k]) * (batch_OActivations[iNum][k])*\
+                                    (1 - batch_OActivations[iNum][k]) * batch_HActivations[iNum][j]
+                        OWeight[j, k] = (LRate / current_batch_size) * temp
+
+                print "After backprop update ====>"
+                print "OWeight", OWeight
+                print "OBias", OBias
+                print "HWeight", HWeight
+                print "HBias", HBias
+
+            current_batch += 1
         # Check test accuracy
         def getPrediction(x):
             feedForward(x)
